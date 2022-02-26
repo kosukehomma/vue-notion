@@ -10,6 +10,10 @@
           v-model="widget.text"
           class="heading transparent"
           placeholder="見出し"
+          v-bind:ref="'widget-heading-' + widget.id"
+          @keypress.enter="onClickAddWidgetAfter(parentWidget, widget)"
+          @keydown.tab="onKeydownTab"
+          @keydown.delete="onKeydownDelete"
         />
       </template>
       <template v-if="widget.type == 'body'">
@@ -17,6 +21,10 @@
             v-model="widget.text"
             class="body transparent"
             placeholder="本文"
+            v-bind:ref="'widget-body-' + widget.id"
+            @keyperss.enter="onClickAddWidgetAfter(parentWidget, widget)"
+            @keydown.tab="onKeydownTab"
+            @keydown.delete="onKeydownDelete"
           />
       </template>
       <template v-if="widget.type == 'code'">
@@ -26,6 +34,7 @@
           rows="1"
           placeholder="コード"
           v-bind:ref="'widget-code-' + widget.id"
+          @keydown.delete="onKeydownDelete"
         >
         </textarea>
       </template>
@@ -51,21 +60,25 @@
       </div>
     </div>
     <div class="child-widget">
-      <WidgetItem
-        v-for="childWidget in widget.children"
-        v-bind:widget="childWidget"
-        v-bind:parentWidget="widget"
-        v-bind:layer="layer + 1"
-        v-bind:key="childWidget.id"
-        @delete="onClickDelete"
-        @addChild="onClickChildWidget"
-        @addWidgetAfter="onClickAddWidgetAfter"
-      />
+      <draggable v-bind:list="widget.children" group="widgets">
+        <WidgetItem
+          v-for="childWidget in widget.children"
+          v-bind:widget="childWidget"
+          v-bind:parentWidget="widget"
+          v-bind:layer="layer + 1"
+          v-bind:key="childWidget.id"
+          @delete="onClickDelete"
+          @addChild="onClickChildWidget"
+          @addWidgetAfter="onClickAddWidgetAfter"
+        />
+      </draggable>
     </div>
   </div>
 </template>
 
 <script>
+import draggable from 'vuedraggable'
+
 export default {
   name: 'WidgetItem',
   props: [
@@ -73,6 +86,10 @@ export default {
     'parentWidget',
     'layer',
   ],
+  mounted: function() {
+    const input = this.$refs[`widget-${this.widget.type}-${this.widget.id}`];
+    input.focus();
+  },
   methods: {
     onMouseOver: function() {
       this.widget.mouseover =true;
@@ -89,6 +106,18 @@ export default {
     onClickAddWidgetAfter: function(parentWidget, widget) {
       this.$emit('addWidgetAfter', parentWidget, widget);
     },
+    onKeydownTab : function(e) {
+      if (this.widget.layer < 3) {
+        this.$emit('addChild', this.widget);
+      }
+      e.preventDefault();
+    },
+    onKeydownDelete : function(e) {
+      if (this.widget.text.length === 0) {
+        this.$emit('delete', this.parentWidget, this.widget);
+        e.preventDefault();
+      }
+    },
     resizeCodeTextarea: function() {
       if (this.widget.type !== 'code') return;
       const textarea = this.$refs[`widget-code-${this.widget.id}`];
@@ -104,6 +133,9 @@ export default {
     'widget.text': function() {
       this.resizeCodeTextarea();
     },
+  },
+  components: {
+    draggable,
   },
 }
 </script>
